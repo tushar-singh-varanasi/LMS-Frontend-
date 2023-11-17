@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href='https://fonts.googleapis.com/css?family=Alice' rel='stylesheet'>
+    <style>
+        body {
+            font-family: 'Alice';
+            font-size: 22px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container mt-5">
+        <h2>Book Management</h2>
+
+        <!-- Add Book Form -->
+        <form id="addBookForm">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" class="form-control" id="title" required>
+            </div>
+            <div class="form-group">
+                <label for="author">Author</label>
+                <input type="text" class="form-control" id="author" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea class="form-control" id="description" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select class="form-control" id="status">
+                    <option value="AVAILABLE">Available</option>
+                    <option value="BORROWED">Borrowed</option>
+                </select>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addBook()">Add Book</button>
+        </form>
+
+        <hr>
+
+        <!-- Display Books -->
+        <h3>Book List</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="bookList">
+                <!-- Book list will be displayed here -->
+            </tbody>
+        </table>
+
+        <!-- Edit Book Modal -->
+        <div class="modal fade" id="editBookModal" tabindex="-1" role="dialog" aria-labelledby="editBookModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editBookModalLabel">Edit Book</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editBookForm">
+                            <div class="form-group">
+                                <label for="editTitle">Title</label>
+                                <input type="text" class="form-control" id="editTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editAuthor">Author</label>
+                                <input type="text" class="form-control" id="editAuthor" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editDescription">Description</label>
+                                <textarea class="form-control" id="editDescription" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="editStatus">Status</label>
+                                <select class="form-control" id="editStatus">
+                                    <option value="AVAILABLE">Available</option>
+                                    <option value="BORROWED">Borrowed</option>
+                                </select>
+                            </div>
+                            <input type="hidden" id="editBookId">
+                            <button type="button" class="btn btn-primary" onclick="updateBook()">Update Book</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Fetch and display the book list
+            fetchBooks();
+        });
+
+        function addBook() {
+            const title = document.getElementById('title').value;
+            const author = document.getElementById('author').value;
+            const description = document.getElementById('description').value;
+            const status = document.getElementById('status').value;
+
+            // Get the JWT token from local storage
+            const token = localStorage.getItem('jwt_token');
+
+            // Check if the user is authenticated
+            if (!token) {
+                alert('Authentication required. Please log in.');
+                return;
+            }
+
+            // Make a POST request to add the book
+            const apiUrl = 'https://lmsbackend-iibf.onrender.com/books/';
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token,
+                },
+                body: JSON.stringify({
+                    title: title,
+                    author: author,
+                    description: description,
+                    status: status,
+                }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Clear the form fields
+                    document.getElementById('title').value = '';
+                    document.getElementById('author').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('status').value = 'AVAILABLE';
+
+                    // Fetch and display the updated book list
+                    fetchBooks();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function fetchBooks() {
+            // Make a GET request to fetch the book list
+            const apiUrl = 'https://lmsbackend-iibf.onrender.com/books/';
+
+            fetch(apiUrl, {
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Display the book list
+                    const bookList = document.getElementById('bookList');
+                    bookList.innerHTML = ''; // Clear the previous list
+
+                    data.forEach(book => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                <td>${book.title}</td>
+                <td>${book.author}</td>
+                <td>${book.description}</td>
+                <td>${book.status}</td>
+                <td>
+                    <button class="btn btn-info btn-sm" onclick="editBook(${book.id})">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id})">Delete</button>
+                </td>
+            `;
+                        bookList.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function editBook(bookId) {
+            // Fetch the book details for editing
+            const apiUrl = `https://lmsbackend-iibf.onrender.com/books/${bookId}/`;
+
+            fetch(apiUrl, {
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                },
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        return response.json();
+                    } else {
+                        throw new Error('Book not found');
+                    }
+                })
+                .then(book => {
+                    // Populate the edit book form with existing data
+                    document.getElementById('editTitle').value = book.title;
+                    document.getElementById('editAuthor').value = book.author;
+                    document.getElementById('editDescription').value = book.description;
+                    document.getElementById('editStatus').value = book.status;
+                    document.getElementById('editBookId').value = book.id;
+
+                    // Show the edit book modal
+                    $('#editBookModal').modal('show');
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateBook() {
+            const bookId = document.getElementById('editBookId').value;
+            const title = document.getElementById('editTitle').value;
+            const author = document.getElementById('editAuthor').value;
+            const description = document.getElementById('editDescription').value;
+            const status = document.getElementById('editStatus').value;
+
+            // Make a PUT request to update the book
+            const apiUrl = `https://lmsbackend-iibf.onrender.com/books/${bookId}/`;
+
+            fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                },
+                body: JSON.stringify({
+                    title: title,
+                    author: author,
+                    description: description,
+                    status: status,
+                }),
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        // Hide the modal
+                        $('#editBookModal').modal('hide');
+                        // Fetch and display the updated book list after update
+                        fetchBooks();
+                    } else {
+                        console.error('Error:', response.statusText);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function deleteBook(bookId) {
+            // Make a DELETE request to delete the book
+            const apiUrl = `https://lmsbackend-iibf.onrender.com/books/${bookId}/`;
+
+            fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                },
+            })
+                .then(response => {
+                    if (response.status === 204) {
+                        // Fetch and display the updated book list after deletion
+                        fetchBooks();
+                    } else {
+                        console.error('Error:', response.statusText);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+
+</body>
+</html>

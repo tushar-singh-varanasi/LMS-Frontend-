@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link href='https://fonts.googleapis.com/css?family=Alice' rel='stylesheet'>
+    <style>
+        body {
+            font-family: 'Alice';
+            font-size: 22px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <h2>Library Management System</h2>
+
+                <!-- Create Form -->
+                <form id="createForm">
+                    <div class="form-group">
+                        <label for="createEmail">Email</label>
+                        <input type="email" class="form-control" id="createEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="createUsername">Username</label>
+                        <input type="text" class="form-control" id="createUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="createPassword">Password</label>
+                        <input type="password" class="form-control" id="createPassword" required>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="createUser()">Create Member</button>
+                </form>
+
+                <!-- Member List -->
+                <div class="mt-4">
+                    <h3>Member List</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberList">
+                            <!-- Member list table body will be displayed here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script>
+        function getAuthToken() {
+            return localStorage.getItem('jwt_token');
+        }
+
+        function fetchWithToken(url, options) {
+            var token = getAuthToken();
+            options = options || {};
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = 'Bearer ' + token;
+            return fetch(url, options);
+        }
+
+        function displayMembers() {
+            fetchWithToken('https://lmsbackend-iibf.onrender.com/meber-registration-by-librarian/')
+                .then(response => response.json())
+                .then(data => {
+                    var memberListTableBody = document.getElementById('memberList');
+                    memberListTableBody.innerHTML = '';
+
+                    data.forEach(member => {
+                        var row = memberListTableBody.insertRow(-1);
+                        row.innerHTML = `
+                        <td>${member.email}</td>
+                        <td>${member.username}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editUser(${member.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${member.id})">Delete</button>
+                        </td>
+                    `;
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function createUser() {
+            var email = document.getElementById('createEmail').value;
+            var username = document.getElementById('createUsername').value;
+            var password = document.getElementById('createPassword').value;
+
+            var data = {
+                email: email,
+                username: username,
+                password: password,
+            };
+
+            fetchWithToken('https://lmsbackend-iibf.onrender.com/meber-registration-by-librarian/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.msg);
+                    document.getElementById('createForm').reset();
+                    displayMembers();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function deleteUser(userId) {
+            if (confirm('Are you sure you want to delete this member?')) {
+                fetchWithToken(`https://lmsbackend-iibf.onrender.com/meber-update-delete/${userId}/`, {
+                    method: 'DELETE',
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Member deleted successfully');
+                            displayMembers();
+                        } else {
+                            throw new Error('Failed to delete member');
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function editUser(userId) {
+            // Fetch user details for editing
+            fetchWithToken(`https://lmsbackend-iibf.onrender.com/meber-update-delete/${userId}/`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('Failed to fetch user details for editing');
+                    }
+                })
+                .then(userData => {
+                    var updatedEmail = prompt('Enter updated email:', userData.email);
+                    var updatedUsername = prompt('Enter updated username:', userData.username);
+
+                    var updatedData = {
+                        email: updatedEmail,
+                        username: updatedUsername,
+                    };
+
+                    fetchWithToken(`https://lmsbackend-iibf.onrender.com/meber-update-delete/${userId}/`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(updatedData),
+                    })
+                        .then(response => {
+                            if (response.ok) {
+                                alert('Member updated successfully');
+                                displayMembers();
+                            } else {
+                                throw new Error('Failed to update member');
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        displayMembers();
+    </script>
+
+</body>
+</html>

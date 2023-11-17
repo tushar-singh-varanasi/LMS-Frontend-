@@ -1,0 +1,257 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href='https://fonts.googleapis.com/css?family=Alice' rel='stylesheet'>
+    <style>
+        body {
+            font-family: 'Alice';
+            font-size: 22px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar with Logout and Delete Profile Dropdown -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Library Management</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                        Profile
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="userDropdown">
+                        <a class="dropdown-item" href="#" id="logoutBtn">Logout</a>
+                        <a class="dropdown-item" href="#" id="deleteProfileBtn">Delete Profile</a>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2>Book List</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="book-list">
+                <!-- Book rows will be dynamically added here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bootstrap modal for Borrow/Return Book -->
+    <div class="modal fade" id="borrowReturnModal" tabindex="-1" role="dialog" aria-labelledby="borrowReturnModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="borrowReturnModalLabel">Borrow/Return Book</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="transaction-form">
+                        <input type="hidden" id="book-id">
+                        <input type="hidden" id="book-status">
+                        <div class="form-group">
+                            <label for="return-date">Return Date:</label>
+                            <input type="date" class="form-control" id="return-date">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="transaction-button">Transaction</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // for unauth user
+            var jwtToken = localStorage.getItem('jwt_token');
+            if (!jwtToken) {
+                // Redirect to the login page if not authenticated
+                window.location.href = 'login.html'; // Update with your login page URL
+                return;
+            }
+            // Fetch books and render them
+            fetchBooks();
+
+            // Show the transaction modal when the "Transaction" button is clicked
+            document.getElementById('transaction-button').addEventListener('click', function () {
+                handleTransaction();
+            });
+
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', function () {
+                // Perform logout actions (e.g., clear token from localStorage)
+                localStorage.removeItem('jwt_token');
+
+                // Redirect to the login page or perform any other desired action
+                window.location.href = 'index.html'; // Update with your login page URL
+            });
+
+            // Delete Profile
+            document.getElementById('deleteProfileBtn').addEventListener('click', function () {
+                // Call the function to delete the user profile
+                deleteProfile();
+            });
+        });
+
+        function deleteProfile() {
+            // Use the user's authentication token
+            const token = getJWTToken();
+
+            // Send a DELETE request to the API endpoint
+            fetch('https://lmsbackend-iibf.onrender.com/profile/delete/', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => {
+                    if (response.ok) {
+                        // Successful deletion, redirect or show a success message
+                        console.log('Profile deleted successfully');
+                        alert('profile delete')
+                        window.location.reload(); // Reload the page for simplicity
+
+
+
+                    } else {
+                        // Handle errors
+                        console.error('Error deleting profile:', response.statusText);
+                    }
+                })
+                .catch(error => console.error('Error deleting profile:', error));
+        }
+
+        function fetchBooks() {
+            const token = getJWTToken();
+
+            fetch('https://lmsbackend-iibf.onrender.com/books-member/', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const bookListContainer = document.getElementById('book-list');
+                    bookListContainer.innerHTML = ''; // Clear previous content
+
+                    data.forEach(book => {
+                        const row = createBookRow(book);
+                        bookListContainer.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error fetching books:', error));
+        }
+
+        function createBookRow(book) {
+            const row = document.createElement('tr');
+
+            const titleCell = document.createElement('td');
+            titleCell.textContent = book.title;
+
+            const authorCell = document.createElement('td');
+            authorCell.textContent = book.author;
+
+            const statusCell = document.createElement('td');
+            statusCell.textContent = book.status;
+
+            const actionCell = document.createElement('td');
+            const actionButton = document.createElement('button');
+            actionButton.className = 'btn btn-primary';
+            actionButton.textContent = book.status === 'AVAILABLE' ? 'Borrow' : 'Return';
+            actionButton.addEventListener('click', function () {
+                prepareTransactionForm(book);
+            });
+            actionCell.appendChild(actionButton);
+
+            row.appendChild(titleCell);
+            row.appendChild(authorCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionCell);
+
+            return row;
+        }
+
+        function prepareTransactionForm(book) {
+            // Populate hidden input with book ID
+            document.getElementById('book-id').value = book.id;
+            // Populate hidden input with book status
+            document.getElementById('book-status').value = book.status;
+
+            // Reset return date input
+            document.getElementById('return-date').value = '';
+
+            // Show the Bootstrap modal
+            $('#borrowReturnModal').modal('show');
+        }
+
+        function handleTransaction() {
+            const token = getJWTToken();
+            const bookId = document.getElementById('book-id').value;
+            const returnDate = document.getElementById('return-date').value;
+            const bookStatus = document.getElementById('book-status').value;
+
+            let method = 'POST';
+            let transactionEndpoint = `https://lmsbackend-iibf.onrender.com/books/${bookId}/borrow/`;
+
+            // If the book status is 'BORROWED', it's a return action
+            if (bookStatus === 'BORROWED') {
+                method = 'PATCH';
+                transactionEndpoint = `https://lmsbackend-iibf.onrender.com/transactions/${bookId}/return/`;
+            }
+
+            fetch(transactionEndpoint, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    return_date: returnDate,
+                }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Handle success, e.g., show a success message
+                    console.log('Transaction successful:', data);
+
+                    // Refresh book list after transaction
+                    fetchBooks();
+                })
+                .catch(error => console.error('Error handling transaction:', error));
+
+            // Hide the Bootstrap modal after handling the transaction
+            $('#borrowReturnModal').modal('hide');
+        }
+
+        function getJWTToken() {
+            return localStorage.getItem('jwt_token');
+        }
+    </script>
+</body>
+</html>
